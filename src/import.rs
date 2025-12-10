@@ -373,15 +373,68 @@ pub fn is_ron_format(input: &str) -> bool {
     trimmed.starts_with('(') || trimmed.starts_with("StyledDocument")
 }
 
+/// Detect if input is an echo command and extract the content inside quotes
+/// Returns the inner content if it's an echo command, otherwise returns the original input
+pub fn strip_echo_wrapper(input: &str) -> &str {
+    let trimmed = input.trim();
+    
+    // Check for various echo command patterns
+    // echo -e "..."
+    // echo -e '...'
+    // echo "..."
+    // printf "..."
+    
+    let prefixes = [
+        r#"echo -e ""#,
+        r#"echo -e '"#,
+        r#"echo ""#,
+        r#"echo '"#,
+        r#"printf ""#,
+        r#"printf '"#,
+    ];
+    
+    for prefix in prefixes {
+        if trimmed.starts_with(prefix) {
+            let after_prefix = &trimmed[prefix.len()..];
+            // Find the matching closing quote
+            let quote_char = prefix.chars().last().unwrap();
+            
+            // Find the last occurrence of the quote (handling escaped quotes)
+            if let Some(end_pos) = after_prefix.rfind(quote_char) {
+                return &after_prefix[..end_pos];
+            }
+        }
+    }
+    
+    // Also handle $'...' syntax (bash ANSI-C quoting)
+    if trimmed.starts_with("echo $'") || trimmed.starts_with("echo -e $'") {
+        let start = if trimmed.starts_with("echo -e $'") {
+            "echo -e $'".len()
+        } else {
+            "echo $'".len()
+        };
+        let after_prefix = &trimmed[start..];
+        if let Some(end_pos) = after_prefix.rfind('\'') {
+            return &after_prefix[..end_pos];
+        }
+    }
+    
+    input
+}
+
 /// Import from clipboard - auto-detect format (RON vs ANSI)
 pub fn import_from_clipboard(app: &mut App) -> Result<String> {
     let mut clipboard = Clipboard::new()?;
     let content = clipboard.get_text()?;
 
-    let chars = if is_ron_format(&content) {
-        import_ron(&content)?
+    let (chars, format_name) = if is_ron_format(&content) {
+        (import_ron(&content)?, "RON")
     } else {
-        parse_ansi(&content)?
+        // Try to strip echo wrapper if present
+        let stripped = strip_echo_wrapper(&content);
+        let was_echo = stripped.len() != content.len();
+        let format = if was_echo { "echo cmd" } else { "ANSI" };
+        (parse_ansi(stripped)?, format)
     };
 
     let char_count = chars.len();
@@ -389,8 +442,7 @@ pub fn import_from_clipboard(app: &mut App) -> Result<String> {
     app.cursor_pos = app.text.len();
     app.clear_selection();
 
-    let format = if is_ron_format(&content) { "RON" } else { "ANSI" };
-    Ok(format!("Imported {} chars ({})", char_count, format))
+    Ok(format!("Imported {} chars ({})", char_count, format_name))
 }
 
 /// Export to RON and copy to clipboard
@@ -494,5 +546,47 @@ mod tests {
         let result = parse_ansi("\\e[44mBlue\\e[0m").unwrap();
         assert_eq!(result.len(), 4);
         assert_eq!(result[0].style.bg, Color::Blue);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_double_quotes() {
+        let input = r#"echo -e "\033[31mHello\033[0m""#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_single_quotes() {
+        let input = r#"echo -e '\033[31mHello\033[0m'"#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_no_e_flag() {
+        let input = r#"echo "\033[31mHello\033[0m""#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_printf() {
+        let input = r#"printf "\033[31mHello\033[0m""#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_not_echo() {
+        let input = r#"\033[31mHello\033[0m"#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, input);
+    }
+
+    #[test]
+    fn test_strip_echo_wrapper_ansi_c_quoting() {
+        let input = r#"echo $'\033[31mHello\033[0m'"#;
+        let stripped = strip_echo_wrapper(input);
+        assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
     }
 }

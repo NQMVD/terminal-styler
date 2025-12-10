@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{App, Mode, Panel};
+use crate::app::{App, Mode, Panel, SelectionHighlightMode};
 use crate::colors::{theme, COLOR_PALETTE};
 
 /// Render the entire UI
@@ -66,6 +66,9 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
 
     // Build styled text with cursor
     let mut spans: Vec<Span> = Vec::new();
+    let mut selection_line_spans: Vec<Span> = Vec::new();
+    let use_underline_mode = app.selection_highlight_mode == SelectionHighlightMode::Underline
+        && app.mode == Mode::Selecting;
     
     if app.text.is_empty() {
         // Show placeholder text
@@ -103,14 +106,37 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
                 style = style.add_modifier(Modifier::DIM);
             }
 
-            // Selection highlight
-            if app.is_selected(i) {
-                style = style.bg(theme::ACCENT_SECONDARY);
-            }
+            // Selection highlight based on mode
+            let is_selected = app.is_selected(i);
+            let is_cursor = i == app.cursor_pos && is_focused;
 
-            // Cursor position
-            if i == app.cursor_pos && is_focused {
-                style = style.bg(theme::ACCENT_PRIMARY).fg(theme::BG_PRIMARY);
+            if use_underline_mode {
+                // Underline mode: build selection indicator line
+                if is_cursor {
+                    selection_line_spans.push(Span::styled(
+                        "+",
+                        Style::default().fg(theme::ACCENT_PRIMARY).add_modifier(Modifier::BOLD),
+                    ));
+                } else if is_selected {
+                    selection_line_spans.push(Span::styled(
+                        "─",
+                        Style::default().fg(theme::ACCENT_SECONDARY),
+                    ));
+                } else {
+                    selection_line_spans.push(Span::styled(" ", Style::default()));
+                }
+                // Cursor still gets subtle highlight
+                if is_cursor {
+                    style = style.add_modifier(Modifier::BOLD);
+                }
+            } else {
+                // Reversed mode
+                if is_selected {
+                    style = style.add_modifier(Modifier::REVERSED);
+                }
+                if is_cursor {
+                    style = style.bg(theme::ACCENT_PRIMARY).fg(theme::BG_PRIMARY);
+                }
             }
 
             spans.push(Span::styled(styled_char.ch.to_string(), style));
@@ -118,6 +144,12 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
 
         // Cursor at end of text
         if app.cursor_pos >= app.text.len() && is_focused {
+            if use_underline_mode {
+                selection_line_spans.push(Span::styled(
+                    "+",
+                    Style::default().fg(theme::ACCENT_PRIMARY).add_modifier(Modifier::BOLD),
+                ));
+            }
             let cursor_style = Style::default()
                 .bg(theme::ACCENT_PRIMARY)
                 .fg(theme::BG_PRIMARY);
@@ -131,9 +163,25 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
         Mode::Selecting => "VISUAL",
     };
 
-    let title = format!(" Editor [{}] ", mode_indicator);
+    let highlight_indicator = if app.mode == Mode::Selecting {
+        match app.selection_highlight_mode {
+            SelectionHighlightMode::Reversed => " │ Ctrl+H: underline",
+            SelectionHighlightMode::Underline => " │ Ctrl+H: reversed",
+        }
+    } else {
+        ""
+    };
 
-    let editor = Paragraph::new(Line::from(spans))
+    let title = format!(" Editor [{}]{} ", mode_indicator, highlight_indicator);
+
+    // Build lines for paragraph
+    let lines = if use_underline_mode && !selection_line_spans.is_empty() {
+        vec![Line::from(spans), Line::from(selection_line_spans)]
+    } else {
+        vec![Line::from(spans)]
+    };
+
+    let editor = Paragraph::new(lines)
         .style(Style::default().bg(theme::BG_SECONDARY))
         .block(
             Block::default()

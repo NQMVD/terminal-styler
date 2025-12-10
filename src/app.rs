@@ -83,6 +83,16 @@ impl Panel {
     }
 }
 
+/// How to display selection highlighting
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SelectionHighlightMode {
+    /// Reversed colors on selected text
+    #[default]
+    Reversed,
+    /// Underline-style: dashes on separate line, plus for cursor
+    Underline,
+}
+
 /// Main application state
 pub struct App {
     /// The styled text buffer
@@ -119,6 +129,8 @@ pub struct App {
     pub status_message: Option<String>,
     /// Should the app quit?
     pub should_quit: bool,
+    /// Selection highlight display mode
+    pub selection_highlight_mode: SelectionHighlightMode,
 }
 
 impl Default for App {
@@ -141,6 +153,7 @@ impl Default for App {
             bg_color_index: 0, // None/Reset
             status_message: None,
             should_quit: false,
+            selection_highlight_mode: SelectionHighlightMode::default(),
         }
     }
 }
@@ -295,6 +308,14 @@ impl App {
     pub fn cycle_dim(&mut self) {
         self.current_dim = (self.current_dim + 1) % 4;
         self.apply_style();
+    }
+
+    /// Toggle selection highlight mode
+    pub fn toggle_selection_highlight_mode(&mut self) {
+        self.selection_highlight_mode = match self.selection_highlight_mode {
+            SelectionHighlightMode::Reversed => SelectionHighlightMode::Underline,
+            SelectionHighlightMode::Underline => SelectionHighlightMode::Reversed,
+        };
     }
 
     /// Set status message

@@ -12,6 +12,15 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) {
                 app.should_quit = true;
                 return;
             }
+            KeyCode::Char('h') => {
+                app.toggle_selection_highlight_mode();
+                let mode_name = match app.selection_highlight_mode {
+                    crate::app::SelectionHighlightMode::Reversed => "Reversed",
+                    crate::app::SelectionHighlightMode::Underline => "Underline",
+                };
+                app.set_status(format!("Selection highlight: {}", mode_name));
+                return;
+            }
             _ => {}
         }
     }

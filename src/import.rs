@@ -469,4 +469,30 @@ mod tests {
         assert!(!is_ron_format("\x1b[31mHello"));
         assert!(!is_ron_format("plain text"));
     }
+
+    #[test]
+    fn test_parse_literal_octal_escape() {
+        // Literal \033 format (common in echo -e output when copied as text)
+        let result = parse_ansi("\\033[31mRed\\033[0m").unwrap();
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].style.fg, Color::Red);
+        assert_eq!(result[0].ch, 'R');
+    }
+
+    #[test]
+    fn test_parse_literal_hex_escape() {
+        // Literal \x1b format
+        let result = parse_ansi("\\x1b[1;32mBoldGreen\\x1b[0m").unwrap();
+        assert_eq!(result.len(), 9);
+        assert!(result[0].style.bold);
+        assert_eq!(result[0].style.fg, Color::Green);
+    }
+
+    #[test]
+    fn test_parse_literal_e_escape() {
+        // Literal \e format (bash shorthand)
+        let result = parse_ansi("\\e[44mBlue\\e[0m").unwrap();
+        assert_eq!(result.len(), 4);
+        assert_eq!(result[0].style.bg, Color::Blue);
+    }
 }

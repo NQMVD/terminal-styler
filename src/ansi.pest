@@ -1,14 +1,18 @@
 // ANSI escape sequence grammar for terminal text parsing
 // Handles SGR (Select Graphic Rendition) sequences commonly used for text styling
+// Supports both real ESC byte and literal representations (\033, \x1b, \e)
 
 // Main entry point - a sequence of text and escape sequences
 ansi_text = { SOI ~ (escape_sequence | plain_char)* ~ EOI }
 
-// A single non-escape character
-plain_char = { !"\x1b" ~ ANY }
+// A single non-escape character (not ESC byte and not start of literal escape)
+plain_char = { !escape_start ~ ANY }
 
-// ESC [ ... m - CSI SGR sequence
-escape_sequence = { "\x1b[" ~ sgr_params ~ "m" }
+// Start of any escape sequence variant
+escape_start = _{ "\x1b[" | "\\033[" | "\\x1b[" | "\\x1B[" | "\\e[" }
+
+// ESC [ ... m - CSI SGR sequence (multiple formats)
+escape_sequence = { escape_start ~ sgr_params ~ "m" }
 
 // SGR parameters - semicolon-separated numbers
 sgr_params = { param? ~ (";" ~ param)* }

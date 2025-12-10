@@ -23,14 +23,33 @@ pub fn render(frame: &mut Frame, app: &App) {
         .margin(1)
         .constraints([
             Constraint::Length(3),  // Header
-            Constraint::Min(6),     // Main content
-            Constraint::Length(4),  // Controls (slightly taller for more decorations)
+            Constraint::Min(6),     // Main content (editor with margins) - grows to fill space
+            Constraint::Length(4),  // Controls (fixed height when horizontal)
             Constraint::Length(1),  // Status bar
         ])
         .split(size);
 
     render_header(frame, chunks[0]);
-    render_editor(frame, app, chunks[1]);
+    
+    // Add horizontal and vertical margin around editor
+    let editor_area = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),  // Top margin
+            Constraint::Min(4),     // Editor
+        ])
+        .split(
+            Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Length(2),  // Left margin
+                    Constraint::Min(10),    // Editor
+                    Constraint::Length(2),  // Right margin
+                ])
+                .split(chunks[1])[1]
+        )[1];
+    
+    render_editor(frame, app, editor_area);
     render_controls(frame, app, chunks[2]);
     render_status_bar(frame, app, chunks[3]);
 }
@@ -43,13 +62,13 @@ fn render_header(frame: &mut Frame, area: Rect) {
     ];
 
     let header = Paragraph::new(Line::from(title))
-        .style(Style::default().bg(theme::BG_SECONDARY))
+        .style(Style::default().bg(theme::BG_PRIMARY))
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(theme::BORDER_DEFAULT))
-                .style(Style::default().bg(theme::BG_SECONDARY)),
+                .style(Style::default().bg(theme::BG_PRIMARY)),
         )
         .alignment(ratatui::layout::Alignment::Center);
 
@@ -182,7 +201,7 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let editor = Paragraph::new(lines)
-        .style(Style::default().bg(theme::BG_SECONDARY))
+        .style(Style::default().bg(theme::BG_PRIMARY))
         .block(
             Block::default()
                 .title(Span::styled(
@@ -194,7 +213,7 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(border_color))
-                .style(Style::default().bg(theme::BG_SECONDARY)),
+                .style(Style::default().bg(theme::BG_PRIMARY)),
         )
         .wrap(Wrap { trim: false });
 
@@ -202,19 +221,53 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_controls(frame: &mut Frame, app: &App, area: Rect) {
-    // Split into three columns: FG color, BG color, Formatting
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(35),
-            Constraint::Percentage(35),
-            Constraint::Percentage(30),
-        ])
-        .split(area);
+    // Responsive layout: stack vertically if narrow (< 80 cols), horizontal otherwise
+    let min_horizontal_width = 80;
+    
+    if area.width >= min_horizontal_width {
+        // Horizontal layout: three columns, fixed height
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(35),
+                Constraint::Percentage(35),
+                Constraint::Percentage(30),
+            ])
+            .split(area);
 
-    render_color_picker(frame, app, chunks[0], "Foreground [F]", true);
-    render_color_picker(frame, app, chunks[1], "Background [G]", false);
-    render_formatting_panel(frame, app, chunks[2]);
+        render_color_picker(frame, app, chunks[0], "Foreground [F]", true);
+        render_color_picker(frame, app, chunks[1], "Background [G]", false);
+        render_formatting_panel(frame, app, chunks[2]);
+    } else {
+        // Vertical layout: stack panels with fixed heights
+        // Total height needed: 4 + 4 + 4 = 12 lines
+        let total_needed = 12u16;
+        let available = area.height;
+        
+        // Calculate how much space we have and adjust if needed
+        let (fg_h, bg_h, fmt_h) = if available >= total_needed {
+            (4, 4, 4)
+        } else if available >= 9 {
+            (3, 3, available.saturating_sub(6).max(3))
+        } else {
+            // Very cramped, minimize everything
+            let each = available / 3;
+            (each, each, available.saturating_sub(each * 2))
+        };
+        
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(fg_h),
+                Constraint::Length(bg_h),
+                Constraint::Length(fmt_h),
+            ])
+            .split(area);
+
+        render_color_picker(frame, app, chunks[0], "FG [F]", true);
+        render_color_picker(frame, app, chunks[1], "BG [G]", false);
+        render_formatting_panel(frame, app, chunks[2]);
+    }
 }
 
 fn render_color_picker(frame: &mut Frame, app: &App, area: Rect, title: &str, is_foreground: bool) {
@@ -289,7 +342,7 @@ fn render_color_picker(frame: &mut Frame, app: &App, area: Rect, title: &str, is
     let text = vec![Line::from(line1_spans), Line::from(line2_spans)];
 
     let picker = Paragraph::new(text)
-        .style(Style::default().bg(theme::BG_SECONDARY))
+        .style(Style::default().bg(theme::BG_PRIMARY))
         .block(
             Block::default()
                 .title(Span::styled(
@@ -301,7 +354,7 @@ fn render_color_picker(frame: &mut Frame, app: &App, area: Rect, title: &str, is
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(border_color))
-                .style(Style::default().bg(theme::BG_SECONDARY)),
+                .style(Style::default().bg(theme::BG_PRIMARY)),
         );
 
     frame.render_widget(picker, area);
@@ -355,7 +408,7 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
     ];
 
     let panel = Paragraph::new(lines)
-        .style(Style::default().bg(theme::BG_SECONDARY))
+        .style(Style::default().bg(theme::BG_PRIMARY))
         .block(
             Block::default()
                 .title(Span::styled(
@@ -367,7 +420,7 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(border_color))
-                .style(Style::default().bg(theme::BG_SECONDARY)),
+                .style(Style::default().bg(theme::BG_PRIMARY)),
         );
 
     frame.render_widget(panel, area);

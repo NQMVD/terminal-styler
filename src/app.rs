@@ -15,7 +15,7 @@ pub struct CharStyle {
 impl Default for CharStyle {
     fn default() -> Self {
         Self {
-            fg: Color::White,
+            fg: Color::Reset,
             bg: Color::Reset,
             bold: false,
             italic: false,
@@ -140,7 +140,7 @@ impl Default for App {
             cursor_pos: 0,
             selection: None,
             selection_anchor: None,
-            current_fg: Color::White,
+            current_fg: Color::Reset,
             current_bg: Color::Reset,
             current_bold: false,
             current_italic: false,
@@ -149,7 +149,7 @@ impl Default for App {
             current_dim: 0,
             mode: Mode::Normal,
             active_panel: Panel::Editor,
-            fg_color_index: 8, // White (index shifted by 1 due to Reset at 0)
+            fg_color_index: 0, // None/Reset
             bg_color_index: 0, // None/Reset
             status_message: None,
             should_quit: false,
@@ -340,14 +340,14 @@ impl App {
 
     /// Reset current style to defaults
     pub fn reset_style(&mut self) {
-        self.current_fg = Color::White;
+        self.current_fg = Color::Reset;
         self.current_bg = Color::Reset;
         self.current_bold = false;
         self.current_italic = false;
         self.current_underline = false;
         self.current_strikethrough = false;
         self.current_dim = 0;
-        self.fg_color_index = 8; // White
+        self.fg_color_index = 0; // None/Reset
         self.bg_color_index = 0; // None/Reset
     }
 

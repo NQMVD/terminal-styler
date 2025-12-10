@@ -1,6 +1,7 @@
 use crate::app::{App, Mode, Panel};
 use crate::colors::{color_index_from_key, COLOR_PALETTE};
 use crate::export::copy_to_clipboard;
+use crate::import::{export_ron_to_clipboard, import_from_clipboard};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 /// Handle key events and update app state
@@ -19,6 +20,22 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) {
                     crate::app::SelectionHighlightMode::Underline => "Underline",
                 };
                 app.set_status(format!("Selection highlight: {}", mode_name));
+                return;
+            }
+            KeyCode::Char('i') => {
+                // Import from clipboard (auto-detect ANSI vs RON)
+                match import_from_clipboard(app) {
+                    Ok(msg) => app.set_status(format!("✓ {}", msg)),
+                    Err(e) => app.set_status(format!("✗ Import failed: {}", e)),
+                }
+                return;
+            }
+            KeyCode::Char('e') => {
+                // Export to RON format
+                match export_ron_to_clipboard(app) {
+                    Ok(_) => app.set_status("✓ Copied RON to clipboard!"),
+                    Err(e) => app.set_status(format!("✗ RON export failed: {}", e)),
+                }
                 return;
             }
             _ => {}

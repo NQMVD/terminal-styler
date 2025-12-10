@@ -28,7 +28,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     // Hide header when terminal height is cramped (< 16 lines)
     let show_header = size.height >= 16;
 
-    // Main layout: header (optional), content, spacing, controls, status bar
+    // Main layout: header (optional), content, spacing, controls, spacing, status bar
     let chunks = if show_header {
         Layout::default()
             .direction(Direction::Vertical)
@@ -36,8 +36,9 @@ pub fn render(frame: &mut Frame, app: &App) {
             .constraints([
                 Constraint::Length(3),                    // Header
                 Constraint::Min(4),                       // Editor (grows to fill)
-                Constraint::Length(1),                    // Spacing
+                Constraint::Length(1),                    // Spacing above controls
                 Constraint::Length(controls_height),     // Controls
+                Constraint::Length(1),                    // Spacing below controls
                 Constraint::Length(1),                    // Status bar
             ])
             .split(size)
@@ -47,19 +48,20 @@ pub fn render(frame: &mut Frame, app: &App) {
             .margin(1)
             .constraints([
                 Constraint::Min(3),                       // Editor (grows to fill)
-                Constraint::Length(1),                    // Spacing
+                Constraint::Length(1),                    // Spacing above controls
                 Constraint::Length(controls_height),     // Controls
+                Constraint::Length(1),                    // Spacing below controls
                 Constraint::Length(1),                    // Status bar
             ])
             .split(size)
     };
 
     // Render based on whether header is shown
-    let (editor_chunk, spacing_chunk, controls_chunk, status_chunk) = if show_header {
+    let (editor_chunk, _spacing1_chunk, controls_chunk, _spacing2_chunk, status_chunk) = if show_header {
         render_header(frame, chunks[0]);
-        (chunks[1], chunks[2], chunks[3], chunks[4])
+        (chunks[1], chunks[2], chunks[3], chunks[4], chunks[5])
     } else {
-        (chunks[0], chunks[1], chunks[2], chunks[3])
+        (chunks[0], chunks[1], chunks[2], chunks[3], chunks[4])
     };
 
     // Add horizontal and vertical margin around editor
@@ -82,8 +84,7 @@ pub fn render(frame: &mut Frame, app: &App) {
     
     render_editor(frame, app, editor_area);
     
-    // Spacing is just empty - no render needed, it uses BG_PRIMARY already
-    let _ = spacing_chunk;
+    // Spacings use BG_PRIMARY already, no render needed
     
     render_controls(frame, app, controls_chunk);
     render_status_bar(frame, app, status_chunk);
@@ -228,12 +229,20 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
 
     let title = format!(" Editor [{}]{} ", mode_indicator, highlight_indicator);
 
-    // Build lines for paragraph
-    let lines = if use_underline_mode && !selection_line_spans.is_empty() {
-        vec![Line::from(spans), Line::from(selection_line_spans)]
-    } else {
-        vec![Line::from(spans)]
-    };
+    // Build lines for paragraph - add leading space for padding
+    let padded_spans: Vec<Span> = std::iter::once(Span::raw(" "))
+        .chain(spans.into_iter())
+        .collect();
+    let padded_selection: Vec<Span> = std::iter::once(Span::raw(" "))
+        .chain(selection_line_spans.into_iter())
+        .collect();
+    
+    // Add empty line at top for vertical padding from header
+    let mut lines = vec![Line::from("")];
+    lines.push(Line::from(padded_spans));
+    if use_underline_mode && padded_selection.len() > 1 {
+        lines.push(Line::from(padded_selection));
+    }
 
     let editor = Paragraph::new(lines)
         .style(Style::default().bg(theme::BG_PRIMARY))

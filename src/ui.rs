@@ -145,9 +145,12 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
         for (i, styled_char) in app.text.iter().enumerate() {
             let is_newline = styled_char.ch == '\n';
             
-            let mut style = Style::default()
-                .fg(styled_char.style.fg)
-                .bg(styled_char.style.bg);
+            // Start with foreground, only set background if it's not Reset (transparent)
+            // This allows transparent backgrounds to inherit the panel's BG_PRIMARY
+            let mut style = Style::default().fg(styled_char.style.fg);
+            if styled_char.style.bg != ratatui::style::Color::Reset {
+                style = style.bg(styled_char.style.bg);
+            }
 
             // Apply modifiers
             if styled_char.style.bold {

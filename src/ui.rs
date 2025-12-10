@@ -17,15 +17,23 @@ pub fn render(frame: &mut Frame, app: &App) {
     let bg_block = Block::default().style(Style::default().bg(theme::BG_PRIMARY));
     frame.render_widget(bg_block, size);
 
-    // Main layout: header, content, status bar
+    // Calculate controls height based on width (stacked vs horizontal)
+    let min_horizontal_width = 80;
+    let controls_height = if size.width >= min_horizontal_width + 2 {
+        4  // Horizontal: single row of panels
+    } else {
+        12 // Vertical: stacked panels (4 + 4 + 4)
+    };
+
+    // Main layout: header, content, controls, status bar
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Min(6),     // Main content (editor with margins) - grows to fill space
-            Constraint::Length(4),  // Controls (fixed height when horizontal)
-            Constraint::Length(1),  // Status bar
+            Constraint::Length(3),                    // Header
+            Constraint::Min(4),                       // Editor (grows to fill)
+            Constraint::Length(controls_height),     // Controls
+            Constraint::Length(1),                    // Status bar
         ])
         .split(size);
 
@@ -36,7 +44,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),  // Top margin
-            Constraint::Min(4),     // Editor
+            Constraint::Min(3),     // Editor
         ])
         .split(
             Layout::default()

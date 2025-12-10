@@ -25,26 +25,49 @@ pub fn render(frame: &mut Frame, app: &App) {
         12 // Vertical: stacked panels (4 + 4 + 4)
     };
 
-    // Main layout: header, content, controls, status bar
-    let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Length(3),                    // Header
-            Constraint::Min(4),                       // Editor (grows to fill)
-            Constraint::Length(controls_height),     // Controls
-            Constraint::Length(1),                    // Status bar
-        ])
-        .split(size);
+    // Hide header when terminal height is cramped (< 16 lines)
+    let show_header = size.height >= 16;
 
-    render_header(frame, chunks[0]);
-    
+    // Main layout: header (optional), content, spacing, controls, status bar
+    let chunks = if show_header {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([
+                Constraint::Length(3),                    // Header
+                Constraint::Min(4),                       // Editor (grows to fill)
+                Constraint::Length(1),                    // Spacing
+                Constraint::Length(controls_height),     // Controls
+                Constraint::Length(1),                    // Status bar
+            ])
+            .split(size)
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .margin(1)
+            .constraints([
+                Constraint::Min(3),                       // Editor (grows to fill)
+                Constraint::Length(1),                    // Spacing
+                Constraint::Length(controls_height),     // Controls
+                Constraint::Length(1),                    // Status bar
+            ])
+            .split(size)
+    };
+
+    // Render based on whether header is shown
+    let (editor_chunk, spacing_chunk, controls_chunk, status_chunk) = if show_header {
+        render_header(frame, chunks[0]);
+        (chunks[1], chunks[2], chunks[3], chunks[4])
+    } else {
+        (chunks[0], chunks[1], chunks[2], chunks[3])
+    };
+
     // Add horizontal and vertical margin around editor
     let editor_area = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),  // Top margin
-            Constraint::Min(3),     // Editor
+            Constraint::Min(2),     // Editor
         ])
         .split(
             Layout::default()
@@ -54,12 +77,16 @@ pub fn render(frame: &mut Frame, app: &App) {
                     Constraint::Min(10),    // Editor
                     Constraint::Length(2),  // Right margin
                 ])
-                .split(chunks[1])[1]
+                .split(editor_chunk)[1]
         )[1];
     
     render_editor(frame, app, editor_area);
-    render_controls(frame, app, chunks[2]);
-    render_status_bar(frame, app, chunks[3]);
+    
+    // Spacing is just empty - no render needed, it uses BG_PRIMARY already
+    let _ = spacing_chunk;
+    
+    render_controls(frame, app, controls_chunk);
+    render_status_bar(frame, app, status_chunk);
 }
 
 fn render_header(frame: &mut Frame, area: Rect) {

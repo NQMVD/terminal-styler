@@ -3,10 +3,13 @@
 // Supports both real ESC byte and literal representations (\033, \x1b, \e)
 
 // Main entry point - a sequence of text and escape sequences
-ansi_text = { SOI ~ (escape_sequence | plain_char)* ~ EOI }
+ansi_text = { SOI ~ (escape_sequence | literal_escape | plain_char)* ~ EOI }
 
 // A single non-escape character (not ESC byte and not start of literal escape)
-plain_char = { !escape_start ~ ANY }
+plain_char = { !escape_start ~ !literal_escape ~ ANY }
+
+// Literal escape sequences like \n, \t, \r
+literal_escape = { "\\n" | "\\t" | "\\r" }
 
 // Start of any escape sequence variant
 escape_start = _{ "\x1b[" | "\\033[" | "\\x1b[" | "\\x1B[" | "\\e[" }

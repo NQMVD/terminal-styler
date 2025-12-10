@@ -232,6 +232,94 @@ impl App {
         self.update_selection();
     }
 
+    /// Get the line boundaries (start, end) for a given position
+    /// Returns (line_start_idx, line_end_idx) where line_end_idx is exclusive
+    fn get_line_boundaries(&self, pos: usize) -> (usize, usize) {
+        // Find start of current line
+        let mut line_start = pos;
+        while line_start > 0 {
+            if self.text.get(line_start - 1).map(|c| c.ch) == Some('\n') {
+                break;
+            }
+            line_start -= 1;
+        }
+
+        // Find end of current line (exclusive, points to \n or end of text)
+        let mut line_end = pos;
+        while line_end < self.text.len() {
+            if self.text[line_end].ch == '\n' {
+                break;
+            }
+            line_end += 1;
+        }
+
+        (line_start, line_end)
+    }
+
+    /// Get column position within current line
+    fn get_column(&self) -> usize {
+        let (line_start, _) = self.get_line_boundaries(self.cursor_pos);
+        self.cursor_pos - line_start
+    }
+
+    /// Move cursor up one line
+    pub fn move_up(&mut self) {
+        let (line_start, _) = self.get_line_boundaries(self.cursor_pos);
+        
+        // If we're already on the first line, can't move up
+        if line_start == 0 {
+            return;
+        }
+
+        // Current column position
+        let col = self.get_column();
+
+        // Find the previous line (line_start - 1 points to \n of previous line)
+        let prev_line_end = line_start - 1;
+        let (prev_line_start, _) = self.get_line_boundaries(prev_line_end);
+        let prev_line_len = prev_line_end - prev_line_start;
+
+        // Move to same column or end of previous line if shorter
+        self.cursor_pos = prev_line_start + col.min(prev_line_len);
+        self.update_selection();
+    }
+
+    /// Move cursor down one line
+    pub fn move_down(&mut self) {
+        let (_, line_end) = self.get_line_boundaries(self.cursor_pos);
+        
+        // If we're on the last line (no \n after), can't move down
+        if line_end >= self.text.len() {
+            return;
+        }
+
+        // Current column position
+        let col = self.get_column();
+
+        // Move past the \n to next line
+        let next_line_start = line_end + 1;
+        let (_, next_line_end) = self.get_line_boundaries(next_line_start);
+        let next_line_len = next_line_end - next_line_start;
+
+        // Move to same column or end of next line if shorter
+        self.cursor_pos = next_line_start + col.min(next_line_len);
+        self.update_selection();
+    }
+
+    /// Move cursor to start of current line
+    pub fn move_to_line_start(&mut self) {
+        let (line_start, _) = self.get_line_boundaries(self.cursor_pos);
+        self.cursor_pos = line_start;
+        self.update_selection();
+    }
+
+    /// Move cursor to end of current line
+    pub fn move_to_line_end(&mut self) {
+        let (_, line_end) = self.get_line_boundaries(self.cursor_pos);
+        self.cursor_pos = line_end;
+        self.update_selection();
+    }
+
     /// Start selection mode
     pub fn start_selection(&mut self) {
         self.mode = Mode::Selecting;

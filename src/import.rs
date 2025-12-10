@@ -316,6 +316,16 @@ pub fn parse_ansi(input: &str) -> Result<Vec<StyledChar>> {
                     let ch = inner.as_str().chars().next().unwrap();
                     result.push(StyledChar::with_style(ch, state.to_char_style()));
                 }
+                Rule::literal_escape => {
+                    // Handle literal escape sequences like \n, \t, \r
+                    let ch = match inner.as_str() {
+                        "\\n" => '\n',
+                        "\\t" => '\t',
+                        "\\r" => '\r',
+                        _ => continue,
+                    };
+                    result.push(StyledChar::with_style(ch, state.to_char_style()));
+                }
                 Rule::escape_sequence => {
                     // Find the sgr_params inside the escape sequence
                     for seq_inner in inner.into_inner() {
@@ -588,5 +598,24 @@ mod tests {
         let input = r#"echo $'\033[31mHello\033[0m'"#;
         let stripped = strip_echo_wrapper(input);
         assert_eq!(stripped, r#"\033[31mHello\033[0m"#);
+    }
+
+    #[test]
+    fn test_parse_multiline_literal() {
+        // Test parsing literal \n newlines from echo command format
+        let result = parse_ansi(r#"Line1\nLine2"#).unwrap();
+        assert_eq!(result.len(), 11); // "Line1" + \n + "Line2"
+        assert_eq!(result[5].ch, '\n'); // The newline character
+        assert_eq!(result[6].ch, 'L');
+    }
+
+    #[test]
+    fn test_parse_multiline_with_style() {
+        // Test parsing multiline with ANSI styling
+        let result = parse_ansi(r#"\033[31mRed\nLine\033[0m"#).unwrap();
+        assert_eq!(result.len(), 8); // "Red" + \n + "Line"
+        assert_eq!(result[0].style.fg, Color::Red);
+        assert_eq!(result[3].ch, '\n');
+        assert_eq!(result[4].style.fg, Color::Red); // Style persists after newline
     }
 }

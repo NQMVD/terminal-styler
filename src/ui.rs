@@ -119,27 +119,32 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
         theme::BORDER_DEFAULT
     };
 
-    // Build styled text with cursor
-    let mut spans: Vec<Span> = Vec::new();
-    let mut selection_line_spans: Vec<Span> = Vec::new();
     let use_underline_mode = app.selection_highlight_mode == SelectionHighlightMode::Underline
         && app.mode == Mode::Selecting;
+
+    // Build lines from text, handling newlines
+    let mut lines: Vec<Line> = vec![Line::from("")]; // Start with empty line for top padding
+    let mut current_line_spans: Vec<Span> = vec![Span::raw(" ")]; // Leading space padding
+    let mut selection_line_spans: Vec<Span> = vec![Span::raw(" ")]; // For underline mode
     
     if app.text.is_empty() {
-        // Show placeholder text
+        // Show placeholder text with cursor
         let cursor_style = Style::default()
             .bg(theme::ACCENT_PRIMARY)
             .fg(theme::BG_PRIMARY);
         
         if app.mode == Mode::Typing {
-            spans.push(Span::styled("▌", cursor_style));
+            current_line_spans.push(Span::styled("▌", cursor_style));
         }
-        spans.push(Span::styled(
+        current_line_spans.push(Span::styled(
             " Type 'i' to insert text...",
             Style::default().fg(theme::TEXT_MUTED),
         ));
+        lines.push(Line::from(current_line_spans));
     } else {
         for (i, styled_char) in app.text.iter().enumerate() {
+            let is_newline = styled_char.ch == '\n';
+            
             let mut style = Style::default()
                 .fg(styled_char.style.fg)
                 .bg(styled_char.style.bg);
@@ -166,7 +171,7 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
             let is_cursor = i == app.cursor_pos && is_focused;
 
             if use_underline_mode {
-                // Underline mode: build selection indicator line
+                // Underline mode: build selection indicator
                 if is_cursor {
                     selection_line_spans.push(Span::styled(
                         "+",
@@ -194,7 +199,29 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
                 }
             }
 
-            spans.push(Span::styled(styled_char.ch.to_string(), style));
+            if is_newline {
+                // End current line and start a new one
+                // Show cursor at newline position if needed
+                if is_cursor {
+                    let cursor_style = Style::default()
+                        .bg(theme::ACCENT_PRIMARY)
+                        .fg(theme::BG_PRIMARY);
+                    current_line_spans.push(Span::styled("↵", cursor_style));
+                }
+                
+                lines.push(Line::from(current_line_spans));
+                
+                // Add selection indicator line if in underline mode
+                if use_underline_mode && selection_line_spans.len() > 1 {
+                    lines.push(Line::from(selection_line_spans));
+                }
+                
+                // Start new line with padding
+                current_line_spans = vec![Span::raw(" ")];
+                selection_line_spans = vec![Span::raw(" ")];
+            } else {
+                current_line_spans.push(Span::styled(styled_char.ch.to_string(), style));
+            }
         }
 
         // Cursor at end of text
@@ -208,7 +235,15 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
             let cursor_style = Style::default()
                 .bg(theme::ACCENT_PRIMARY)
                 .fg(theme::BG_PRIMARY);
-            spans.push(Span::styled("▌", cursor_style));
+            current_line_spans.push(Span::styled("▌", cursor_style));
+        }
+        
+        // Add the last line
+        lines.push(Line::from(current_line_spans));
+        
+        // Add final selection indicator line if in underline mode
+        if use_underline_mode && selection_line_spans.len() > 1 {
+            lines.push(Line::from(selection_line_spans));
         }
     }
 
@@ -228,21 +263,6 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
     };
 
     let title = format!(" Editor [{}]{} ", mode_indicator, highlight_indicator);
-
-    // Build lines for paragraph - add leading space for padding
-    let padded_spans: Vec<Span> = std::iter::once(Span::raw(" "))
-        .chain(spans.into_iter())
-        .collect();
-    let padded_selection: Vec<Span> = std::iter::once(Span::raw(" "))
-        .chain(selection_line_spans.into_iter())
-        .collect();
-    
-    // Add empty line at top for vertical padding from header
-    let mut lines = vec![Line::from("")];
-    lines.push(Line::from(padded_spans));
-    if use_underline_mode && padded_selection.len() > 1 {
-        lines.push(Line::from(padded_selection));
-    }
 
     let editor = Paragraph::new(lines)
         .style(Style::default().bg(theme::BG_PRIMARY))
@@ -473,9 +493,9 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = match app.active_panel {
         Panel::Editor => match app.mode {
-            Mode::Normal => "i:insert │ v:select │ e:export │ f/g/d:panels │ Ctrl+Q:quit",
-            Mode::Typing => "Esc:normal │ ←→:move │ Backspace:delete",
-            Mode::Selecting => "←→:extend │ Enter:apply │ Esc:cancel",
+            Mode::Normal => "i:insert │ v:select │ e:export │ hjkl/arrows:move │ Ctrl+Q:quit",
+            Mode::Typing => "Esc:normal │ arrows:move │ Enter:newline │ Backspace:delete",
+            Mode::Selecting => "hjkl/arrows:extend │ Enter:apply │ Esc:cancel",
         },
         Panel::FgColor | Panel::BgColor => "0-9,a-g:select │ ←→↑↓:nav │ Enter:apply │ Esc:editor",
         Panel::Formatting => "B/I/U/S/M:toggle │ E:export │ Esc:editor",

@@ -113,18 +113,26 @@ fn handle_normal_typing_input(app: &mut App, key: KeyEvent) {
         KeyCode::Right | KeyCode::Char('l') if app.mode == Mode::Normal => {
             app.move_right();
         }
+        KeyCode::Up | KeyCode::Char('k') if app.mode == Mode::Normal => {
+            app.move_up();
+        }
+        KeyCode::Down | KeyCode::Char('j') if app.mode == Mode::Normal => {
+            app.move_down();
+        }
         KeyCode::Home | KeyCode::Char('0') if app.mode == Mode::Normal => {
-            app.move_to_start();
+            app.move_to_line_start();
         }
         KeyCode::End | KeyCode::Char('$') if app.mode == Mode::Normal => {
-            app.move_to_end();
+            app.move_to_line_end();
         }
 
         // Arrow keys always work for movement
         KeyCode::Left => app.move_left(),
         KeyCode::Right => app.move_right(),
-        KeyCode::Home => app.move_to_start(),
-        KeyCode::End => app.move_to_end(),
+        KeyCode::Up => app.move_up(),
+        KeyCode::Down => app.move_down(),
+        KeyCode::Home => app.move_to_line_start(),
+        KeyCode::End => app.move_to_line_end(),
 
         // Enter typing mode
         KeyCode::Char('i') if app.mode == Mode::Normal => {
@@ -159,6 +167,11 @@ fn handle_normal_typing_input(app: &mut App, key: KeyEvent) {
             app.clear_status();
         }
 
+        // Enter key inserts newline in typing mode
+        KeyCode::Enter if app.mode == Mode::Typing => {
+            app.insert_char('\n');
+        }
+
         // Backspace
         KeyCode::Backspace => {
             app.delete_char();
@@ -183,8 +196,10 @@ fn handle_selecting_input(app: &mut App, key: KeyEvent) {
         // Movement extends selection
         KeyCode::Left | KeyCode::Char('h') => app.move_left(),
         KeyCode::Right | KeyCode::Char('l') => app.move_right(),
-        KeyCode::Home | KeyCode::Char('0') => app.move_to_start(),
-        KeyCode::End | KeyCode::Char('$') => app.move_to_end(),
+        KeyCode::Up | KeyCode::Char('k') => app.move_up(),
+        KeyCode::Down | KeyCode::Char('j') => app.move_down(),
+        KeyCode::Home | KeyCode::Char('0') => app.move_to_line_start(),
+        KeyCode::End | KeyCode::Char('$') => app.move_to_line_end(),
 
         // Apply style to selection
         KeyCode::Enter => {

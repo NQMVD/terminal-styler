@@ -62,6 +62,7 @@ pub fn generate_echo_command(text: &[StyledChar]) -> String {
 
         // Escape special characters
         match styled_char.ch {
+            '\n' => output.push_str(r#"\n"#),
             '"' => output.push_str(r#"\""#),
             '\\' => output.push_str(r#"\\"#),
             '$' => output.push_str(r#"\$"#),
@@ -144,5 +145,19 @@ mod tests {
         assert!(result.contains("3")); // Italic code
         assert!(result.contains("4")); // Underline code
         assert!(result.contains("9")); // Strikethrough code
+    }
+
+    #[test]
+    fn test_generate_multiline() {
+        let text: Vec<StyledChar> = vec![
+            StyledChar::new('H'),
+            StyledChar::new('i'),
+            StyledChar::new('\n'),
+            StyledChar::new('!'),
+        ];
+        let result = generate_echo_command(&text);
+        assert!(result.contains(r#"\n"#)); // Newline is escaped
+        assert!(result.starts_with(r#"echo -e ""#));
+        assert!(result.ends_with(r#"\033[0m""#));
     }
 }

@@ -1,12 +1,13 @@
 mod app;
 mod colors;
 mod export;
+mod fx;
 mod input;
 mod ui;
 
 use std::io;
 use std::panic;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::{
@@ -18,7 +19,10 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use app::App;
+use fx::FxManager;
 use input::handle_key_event;
+
+const FPS: usize = 60;
 
 fn main() -> Result<()> {
     // Set up panic hook to restore terminal on crash
@@ -53,15 +57,25 @@ fn restore_terminal() -> Result<()> {
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
     let mut app = App::new();
+    let mut fx_manager = FxManager::new();
+    
+    // Trigger startup animation
+    fx_manager.trigger_startup();
+    
+    let mut last_frame = Instant::now();
 
     loop {
-        // Draw UI
+        let elapsed = last_frame.elapsed();
+        last_frame = Instant::now();
+
+        // Draw UI with effects
         terminal.draw(|frame| {
             ui::render(frame, &app);
+            fx_manager.render(frame, frame.area(), elapsed.into());
         })?;
 
-        // Handle events
-        if event::poll(Duration::from_millis(50))? {
+        // Handle events (60 FPS timing)
+        if event::poll(Duration::from_millis(1000 / FPS as u64))? {
             if let Event::Key(key) = event::read()? {
                 // Only handle key press events (not release or repeat)
                 if key.kind == KeyEventKind::Press {
@@ -78,3 +92,4 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
 
     Ok(())
 }
+

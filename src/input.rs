@@ -25,7 +25,7 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) {
         }
     }
 
-    // Global panel shortcuts (f/b/d) when not in typing mode
+    // Global panel shortcuts (f/b/d/r) when not in typing mode
     if app.mode != Mode::Typing {
         match key.code {
             KeyCode::Char('f') | KeyCode::Char('F') => {
@@ -41,6 +41,16 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) {
             KeyCode::Char('d') | KeyCode::Char('D') => {
                 app.active_panel = Panel::Formatting;
                 app.set_status("Decorations");
+                return;
+            }
+            KeyCode::Char('r') | KeyCode::Char('R') => {
+                app.reset_style();
+                if app.selection.is_some() {
+                    app.apply_style();
+                    app.set_status("Reset style applied");
+                } else {
+                    app.set_status("Style reset");
+                }
                 return;
             }
             _ => {}
@@ -110,8 +120,9 @@ fn handle_normal_typing_input(app: &mut App, key: KeyEvent) {
             app.set_status("-- INSERT --");
         }
 
-        // Start selection
+        // Start selection - load character style into panels
         KeyCode::Char('v') if app.mode == Mode::Normal => {
+            app.load_style_from_cursor();
             app.start_selection();
             app.set_status("-- VISUAL --");
         }

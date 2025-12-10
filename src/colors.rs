@@ -27,6 +27,11 @@ pub fn color_index_from_key(key: char) -> Option<usize> {
     COLOR_PALETTE.iter().position(|(_, _, k)| *k == key.to_ascii_lowercase())
 }
 
+/// Get color index from Color value
+pub fn color_index_from_color(color: Color) -> usize {
+    COLOR_PALETTE.iter().position(|(c, _, _)| *c == color).unwrap_or(8) // Default to White
+}
+
 /// Get ANSI code for foreground color
 pub fn fg_ansi_code(color: Color) -> String {
     match color {

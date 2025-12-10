@@ -318,6 +318,39 @@ impl App {
         };
     }
 
+    /// Load style from character at cursor position into current settings
+    pub fn load_style_from_cursor(&mut self) {
+        use crate::colors::color_index_from_color;
+        
+        if self.cursor_pos < self.text.len() {
+            let style = &self.text[self.cursor_pos].style;
+            self.current_fg = style.fg;
+            self.current_bg = style.bg;
+            self.current_bold = style.bold;
+            self.current_italic = style.italic;
+            self.current_underline = style.underline;
+            self.current_strikethrough = style.strikethrough;
+            self.current_dim = style.dim_level;
+            
+            // Update color picker indices
+            self.fg_color_index = color_index_from_color(style.fg);
+            self.bg_color_index = color_index_from_color(style.bg);
+        }
+    }
+
+    /// Reset current style to defaults
+    pub fn reset_style(&mut self) {
+        self.current_fg = Color::White;
+        self.current_bg = Color::Reset;
+        self.current_bold = false;
+        self.current_italic = false;
+        self.current_underline = false;
+        self.current_strikethrough = false;
+        self.current_dim = 0;
+        self.fg_color_index = 8; // White
+        self.bg_color_index = 0; // None/Reset
+    }
+
     /// Set status message
     pub fn set_status(&mut self, msg: impl Into<String>) {
         self.status_message = Some(msg.into());

@@ -1,24 +1,31 @@
 use ratatui::style::Color;
 
-/// Available colors for the palette
-pub const COLOR_PALETTE: &[(Color, &str)] = &[
-    (Color::Black, "Black"),
-    (Color::Red, "Red"),
-    (Color::Green, "Green"),
-    (Color::Yellow, "Yellow"),
-    (Color::Blue, "Blue"),
-    (Color::Magenta, "Magenta"),
-    (Color::Cyan, "Cyan"),
-    (Color::White, "White"),
-    (Color::DarkGray, "DarkGray"),
-    (Color::LightRed, "LightRed"),
-    (Color::LightGreen, "LightGreen"),
-    (Color::LightYellow, "LightYellow"),
-    (Color::LightBlue, "LightBlue"),
-    (Color::LightMagenta, "LightMagenta"),
-    (Color::LightCyan, "LightCyan"),
-    (Color::Gray, "Gray"),
+/// Available colors for the palette (0-indexed for number key selection)
+/// Index 0 is "None/Transparent" for background, uses default for foreground
+pub const COLOR_PALETTE: &[(Color, &str, char)] = &[
+    (Color::Reset, "None", '0'),
+    (Color::Black, "Black", '1'),
+    (Color::Red, "Red", '2'),
+    (Color::Green, "Green", '3'),
+    (Color::Yellow, "Yellow", '4'),
+    (Color::Blue, "Blue", '5'),
+    (Color::Magenta, "Magenta", '6'),
+    (Color::Cyan, "Cyan", '7'),
+    (Color::White, "White", '8'),
+    (Color::DarkGray, "DarkGray", '9'),
+    (Color::LightRed, "LightRed", 'a'),
+    (Color::LightGreen, "LightGreen", 'b'),
+    (Color::LightYellow, "LightYellow", 'c'),
+    (Color::LightBlue, "LightBlue", 'd'),
+    (Color::LightMagenta, "LightMagenta", 'e'),
+    (Color::LightCyan, "LightCyan", 'f'),
+    (Color::Gray, "Gray", 'g'),
 ];
+
+/// Get color index from char key
+pub fn color_index_from_key(key: char) -> Option<usize> {
+    COLOR_PALETTE.iter().position(|(_, _, k)| *k == key.to_ascii_lowercase())
+}
 
 /// Get ANSI code for foreground color
 pub fn fg_ansi_code(color: Color) -> String {
@@ -72,11 +79,7 @@ pub fn bg_ansi_code(color: Color) -> String {
 
 /// Get ANSI code for bold
 pub fn bold_ansi_code(bold: bool) -> Option<&'static str> {
-    if bold {
-        Some("1")
-    } else {
-        None
-    }
+    if bold { Some("1") } else { None }
 }
 
 /// Get ANSI code for dim level
@@ -87,6 +90,21 @@ pub fn dim_ansi_code(level: u8) -> Option<&'static str> {
     }
 }
 
+/// Get ANSI code for italic
+pub fn italic_ansi_code(italic: bool) -> Option<&'static str> {
+    if italic { Some("3") } else { None }
+}
+
+/// Get ANSI code for underline
+pub fn underline_ansi_code(underline: bool) -> Option<&'static str> {
+    if underline { Some("4") } else { None }
+}
+
+/// Get ANSI code for strikethrough
+pub fn strikethrough_ansi_code(strikethrough: bool) -> Option<&'static str> {
+    if strikethrough { Some("9") } else { None }
+}
+
 /// Theme colors for the UI (Anthropic/Claude inspired)
 pub mod theme {
     use ratatui::style::Color;
@@ -94,12 +112,10 @@ pub mod theme {
     // Background colors
     pub const BG_PRIMARY: Color = Color::Rgb(26, 26, 26);      // #1a1a1a
     pub const BG_SECONDARY: Color = Color::Rgb(35, 35, 35);    // #232323
-    pub const BG_ELEVATED: Color = Color::Rgb(45, 45, 45);     // #2d2d2d
 
     // Accent colors (warm orange/amber)
     pub const ACCENT_PRIMARY: Color = Color::Rgb(217, 119, 6);   // Amber-600
     pub const ACCENT_SECONDARY: Color = Color::Rgb(245, 158, 11); // Amber-500
-    pub const ACCENT_MUTED: Color = Color::Rgb(180, 83, 9);      // Amber-700
 
     // Text colors
     pub const TEXT_PRIMARY: Color = Color::Rgb(250, 250, 250);   // #fafafa
@@ -112,6 +128,5 @@ pub mod theme {
     
     // Status colors
     pub const SUCCESS: Color = Color::Rgb(34, 197, 94);          // Green-500
-    pub const WARNING: Color = Color::Rgb(234, 179, 8);          // Yellow-500
     pub const ERROR: Color = Color::Rgb(239, 68, 68);            // Red-500
 }

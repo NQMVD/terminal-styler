@@ -1,5 +1,8 @@
 use crate::app::{App, StyledChar};
-use crate::colors::{bg_ansi_code, bold_ansi_code, dim_ansi_code, fg_ansi_code};
+use crate::colors::{
+    bg_ansi_code, bold_ansi_code, dim_ansi_code, fg_ansi_code,
+    italic_ansi_code, strikethrough_ansi_code, underline_ansi_code,
+};
 use anyhow::Result;
 use arboard::Clipboard;
 
@@ -27,6 +30,21 @@ pub fn generate_echo_command(text: &[StyledChar]) -> String {
         // Bold
         if let Some(bold) = bold_ansi_code(styled_char.style.bold) {
             new_codes.push(bold.to_string());
+        }
+
+        // Italic
+        if let Some(italic) = italic_ansi_code(styled_char.style.italic) {
+            new_codes.push(italic.to_string());
+        }
+
+        // Underline
+        if let Some(underline) = underline_ansi_code(styled_char.style.underline) {
+            new_codes.push(underline.to_string());
+        }
+
+        // Strikethrough
+        if let Some(strike) = strikethrough_ansi_code(styled_char.style.strikethrough) {
+            new_codes.push(strike.to_string());
         }
 
         // Dim
@@ -98,11 +116,33 @@ mod tests {
                 fg: Color::Red,
                 bg: Color::Reset,
                 bold: true,
+                italic: false,
+                underline: false,
+                strikethrough: false,
                 dim_level: 0,
             }),
         ];
         let result = generate_echo_command(&text);
         assert!(result.contains("1")); // Bold code
         assert!(result.contains("31")); // Red foreground
+    }
+
+    #[test]
+    fn test_generate_with_decorations() {
+        let text: Vec<StyledChar> = vec![
+            StyledChar::with_style('X', CharStyle {
+                fg: Color::White,
+                bg: Color::Reset,
+                bold: false,
+                italic: true,
+                underline: true,
+                strikethrough: true,
+                dim_level: 0,
+            }),
+        ];
+        let result = generate_echo_command(&text);
+        assert!(result.contains("3")); // Italic code
+        assert!(result.contains("4")); // Underline code
+        assert!(result.contains("9")); // Strikethrough code
     }
 }

@@ -6,6 +6,9 @@ pub struct CharStyle {
     pub fg: Color,
     pub bg: Color,
     pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+    pub strikethrough: bool,
     pub dim_level: u8, // 0-3: 0 = none, 1-3 = increasing dimness
 }
 
@@ -15,6 +18,9 @@ impl Default for CharStyle {
             fg: Color::White,
             bg: Color::Reset,
             bold: false,
+            italic: false,
+            underline: false,
+            strikethrough: false,
             dim_level: 0,
         }
     }
@@ -93,6 +99,12 @@ pub struct App {
     pub current_bg: Color,
     /// Bold toggle
     pub current_bold: bool,
+    /// Italic toggle
+    pub current_italic: bool,
+    /// Underline toggle
+    pub current_underline: bool,
+    /// Strikethrough toggle
+    pub current_strikethrough: bool,
     /// Dim level (0-3)
     pub current_dim: u8,
     /// Current input mode
@@ -119,11 +131,14 @@ impl Default for App {
             current_fg: Color::White,
             current_bg: Color::Reset,
             current_bold: false,
+            current_italic: false,
+            current_underline: false,
+            current_strikethrough: false,
             current_dim: 0,
             mode: Mode::Normal,
             active_panel: Panel::Editor,
-            fg_color_index: 7, // White
-            bg_color_index: 0, // Black/Reset
+            fg_color_index: 8, // White (index shifted by 1 due to Reset at 0)
+            bg_color_index: 0, // None/Reset
             status_message: None,
             should_quit: false,
         }
@@ -143,6 +158,9 @@ impl App {
                 fg: self.current_fg,
                 bg: self.current_bg,
                 bold: self.current_bold,
+                italic: self.current_italic,
+                underline: self.current_underline,
+                strikethrough: self.current_strikethrough,
                 dim_level: self.current_dim,
             },
         );
@@ -234,6 +252,9 @@ impl App {
             fg: self.current_fg,
             bg: self.current_bg,
             bold: self.current_bold,
+            italic: self.current_italic,
+            underline: self.current_underline,
+            strikethrough: self.current_strikethrough,
             dim_level: self.current_dim,
         };
 
@@ -246,9 +267,27 @@ impl App {
         }
     }
 
-    /// Toggle bold for selection or current style
+    /// Toggle bold
     pub fn toggle_bold(&mut self) {
         self.current_bold = !self.current_bold;
+        self.apply_style();
+    }
+
+    /// Toggle italic
+    pub fn toggle_italic(&mut self) {
+        self.current_italic = !self.current_italic;
+        self.apply_style();
+    }
+
+    /// Toggle underline
+    pub fn toggle_underline(&mut self) {
+        self.current_underline = !self.current_underline;
+        self.apply_style();
+    }
+
+    /// Toggle strikethrough
+    pub fn toggle_strikethrough(&mut self) {
+        self.current_strikethrough = !self.current_strikethrough;
         self.apply_style();
     }
 

@@ -24,7 +24,7 @@ pub fn render(frame: &mut Frame, app: &App) {
         .constraints([
             Constraint::Length(3),  // Header
             Constraint::Min(6),     // Main content
-            Constraint::Length(3),  // Controls
+            Constraint::Length(4),  // Controls (slightly taller for more decorations)
             Constraint::Length(1),  // Status bar
         ])
         .split(size);
@@ -86,12 +86,19 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
                 .fg(styled_char.style.fg)
                 .bg(styled_char.style.bg);
 
-            // Apply bold
+            // Apply modifiers
             if styled_char.style.bold {
                 style = style.add_modifier(Modifier::BOLD);
             }
-
-            // Apply dim (ratatui uses DIM modifier)
+            if styled_char.style.italic {
+                style = style.add_modifier(Modifier::ITALIC);
+            }
+            if styled_char.style.underline {
+                style = style.add_modifier(Modifier::UNDERLINED);
+            }
+            if styled_char.style.strikethrough {
+                style = style.add_modifier(Modifier::CROSSED_OUT);
+            }
             if styled_char.style.dim_level > 0 {
                 style = style.add_modifier(Modifier::DIM);
             }
@@ -127,7 +134,7 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
     let title = format!(" Editor [{}] ", mode_indicator);
 
     let editor = Paragraph::new(Line::from(spans))
-        .style(Style::default().bg(theme::BG_ELEVATED))
+        .style(Style::default().bg(theme::BG_SECONDARY))
         .block(
             Block::default()
                 .title(Span::styled(
@@ -139,7 +146,7 @@ fn render_editor(frame: &mut Frame, app: &App, area: Rect) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::default().fg(border_color))
-                .style(Style::default().bg(theme::BG_ELEVATED)),
+                .style(Style::default().bg(theme::BG_SECONDARY)),
         )
         .wrap(Wrap { trim: false });
 
@@ -157,8 +164,8 @@ fn render_controls(frame: &mut Frame, app: &App, area: Rect) {
         ])
         .split(area);
 
-    render_color_picker(frame, app, chunks[0], "Foreground", true);
-    render_color_picker(frame, app, chunks[1], "Background", false);
+    render_color_picker(frame, app, chunks[0], "Foreground [F]", true);
+    render_color_picker(frame, app, chunks[1], "Background [G]", false);
     render_formatting_panel(frame, app, chunks[2]);
 }
 
@@ -187,26 +194,44 @@ fn render_color_picker(frame: &mut Frame, app: &App, area: Rect, title: &str, is
         app.current_bg
     };
 
-    // Create color palette display (2 rows x 8 colors)
+    // Create color palette display (2 rows: first row 0-8, second row 9-16)
     let mut line1_spans: Vec<Span> = vec![Span::raw(" ")];
     let mut line2_spans: Vec<Span> = vec![Span::raw(" ")];
 
-    for (i, (color, _name)) in COLOR_PALETTE.iter().enumerate() {
+    for (i, (color, _name, key)) in COLOR_PALETTE.iter().enumerate() {
         let is_selected = i == selected_index;
         let is_current = *color == current_color;
 
-        let display = if is_selected && is_focused {
-            "▓▓"
+        // Show key and color block
+        let key_char = format!("{}", key);
+        let block_display = if is_selected && is_focused {
+            "▓"
         } else if is_current {
-            "██"
+            "█"
         } else {
-            "░░"
+            "░"
         };
 
-        let style = Style::default().fg(*color);
-        let span = Span::styled(display, style);
+        let key_style = Style::default().fg(theme::TEXT_MUTED);
+        let color_style = Style::default().fg(*color);
+        
+        let combined = format!("{}{} ", key_char, block_display);
+        
+        // For Reset/None color, show a special indicator
+        let span = if *color == ratatui::style::Color::Reset {
+            Span::styled(
+                format!("{}◌ ", key_char),
+                if is_selected && is_focused {
+                    Style::default().fg(theme::ACCENT_PRIMARY)
+                } else {
+                    key_style
+                },
+            )
+        } else {
+            Span::styled(combined, color_style)
+        };
 
-        if i < 8 {
+        if i < 9 {
             line1_spans.push(span);
         } else {
             line2_spans.push(span);
@@ -242,45 +267,43 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
         theme::BORDER_DEFAULT
     };
 
-    // Bold indicator
-    let bold_style = if app.current_bold {
-        Style::default()
-            .fg(theme::ACCENT_PRIMARY)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(theme::TEXT_MUTED)
+    // Helper to create decoration indicator
+    let make_indicator = |key: &str, label: &str, active: bool| -> Span {
+        let style = if active {
+            Style::default().fg(theme::ACCENT_PRIMARY).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::TEXT_MUTED)
+        };
+        Span::styled(format!("[{}]{} ", key, if active { "✓" } else { label }), style)
     };
-    let bold_span = Span::styled(
-        if app.current_bold { " [B] Bold ✓ " } else { " [B] Bold   " },
-        bold_style,
-    );
 
     // Dim indicator with levels
     let dim_display = match app.current_dim {
-        0 => "░░░░",
-        1 => "▒░░░",
-        2 => "▓▒░░",
-        3 => "█▓▒░",
-        _ => "░░░░",
+        0 => "░",
+        1 => "▒",
+        2 => "▓",
+        3 => "█",
+        _ => "░",
     };
-    let dim_span = Span::styled(
-        format!(" [D] Dim {} ", dim_display),
-        if app.current_dim > 0 {
-            Style::default().fg(theme::ACCENT_SECONDARY)
-        } else {
-            Style::default().fg(theme::TEXT_MUTED)
-        },
-    );
-
-    // Export button
-    let export_span = Span::styled(
-        " [E] Export ",
-        Style::default().fg(theme::SUCCESS),
-    );
 
     let lines = vec![
-        Line::from(vec![bold_span, dim_span]),
-        Line::from(vec![export_span]),
+        Line::from(vec![
+            make_indicator("B", "old", app.current_bold),
+            make_indicator("I", "talic", app.current_italic),
+            make_indicator("U", "nder", app.current_underline),
+        ]),
+        Line::from(vec![
+            make_indicator("S", "trike", app.current_strikethrough),
+            Span::styled(
+                format!("[M]Dim{} ", dim_display),
+                if app.current_dim > 0 {
+                    Style::default().fg(theme::ACCENT_SECONDARY)
+                } else {
+                    Style::default().fg(theme::TEXT_MUTED)
+                },
+            ),
+            Span::styled("[E]xport", Style::default().fg(theme::SUCCESS)),
+        ]),
     ];
 
     let panel = Paragraph::new(lines)
@@ -288,7 +311,7 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
         .block(
             Block::default()
                 .title(Span::styled(
-                    " Actions ",
+                    " Decorations [D] ",
                     Style::default()
                         .fg(if is_focused { theme::ACCENT_PRIMARY } else { theme::TEXT_SECONDARY })
                         .add_modifier(Modifier::BOLD),
@@ -305,12 +328,12 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = match app.active_panel {
         Panel::Editor => match app.mode {
-            Mode::Normal => "i:insert │ v:select │ e:export │ Tab:next panel │ Ctrl+Q:quit",
+            Mode::Normal => "i:insert │ v:select │ e:export │ f/g/d:panels │ Ctrl+Q:quit",
             Mode::Typing => "Esc:normal │ ←→:move │ Backspace:delete",
-            Mode::Selecting => "←→:extend │ Enter:apply style │ Esc:cancel",
+            Mode::Selecting => "←→:extend │ Enter:apply │ Esc:cancel",
         },
-        Panel::FgColor | Panel::BgColor => "←→↑↓:navigate │ Enter:select │ Tab:next │ Esc:editor",
-        Panel::Formatting => "B:bold │ D:dim │ E:export │ Tab:next │ Esc:editor",
+        Panel::FgColor | Panel::BgColor => "0-9,a-g:select │ ←→↑↓:nav │ Enter:apply │ Esc:editor",
+        Panel::Formatting => "B/I/U/S/M:toggle │ E:export │ Esc:editor",
     };
 
     let mut spans = vec![

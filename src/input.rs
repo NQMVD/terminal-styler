@@ -1,5 +1,5 @@
 use crate::app::{App, Mode, Panel};
-use crate::colors::COLOR_PALETTE;
+use crate::colors::{color_index_from_key, COLOR_PALETTE};
 use crate::export::copy_to_clipboard;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -10,6 +10,28 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) {
         match key.code {
             KeyCode::Char('c') | KeyCode::Char('q') => {
                 app.should_quit = true;
+                return;
+            }
+            _ => {}
+        }
+    }
+
+    // Global panel shortcuts (f/b/d) when not in typing mode
+    if app.mode != Mode::Typing {
+        match key.code {
+            KeyCode::Char('f') | KeyCode::Char('F') => {
+                app.active_panel = Panel::FgColor;
+                app.set_status("Foreground color");
+                return;
+            }
+            KeyCode::Char('g') | KeyCode::Char('G') => {
+                app.active_panel = Panel::BgColor;
+                app.set_status("Background color");
+                return;
+            }
+            KeyCode::Char('d') | KeyCode::Char('D') => {
+                app.active_panel = Panel::Formatting;
+                app.set_status("Decorations");
                 return;
             }
             _ => {}
@@ -159,6 +181,22 @@ fn handle_color_picker_input(app: &mut App, key: KeyEvent, is_foreground: bool) 
     };
 
     match key.code {
+        // Number/letter key selection (0-9, a-g)
+        KeyCode::Char(c) if color_index_from_key(c).is_some() => {
+            if let Some(idx) = color_index_from_key(c) {
+                *color_index = idx;
+                let (color, name, _) = COLOR_PALETTE[idx];
+                if is_foreground {
+                    app.current_fg = color;
+                    app.set_status(format!("FG: {}", name));
+                } else {
+                    app.current_bg = color;
+                    app.set_status(format!("BG: {}", name));
+                }
+                app.apply_style();
+            }
+        }
+
         // Navigate colors
         KeyCode::Left | KeyCode::Char('h') => {
             if *color_index > 0 {
@@ -171,19 +209,19 @@ fn handle_color_picker_input(app: &mut App, key: KeyEvent, is_foreground: bool) 
             }
         }
         KeyCode::Up | KeyCode::Char('k') => {
-            if *color_index >= 8 {
-                *color_index -= 8;
+            if *color_index >= 9 {
+                *color_index -= 9;
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            if *color_index + 8 < COLOR_PALETTE.len() {
-                *color_index += 8;
+            if *color_index + 9 < COLOR_PALETTE.len() {
+                *color_index += 9;
             }
         }
 
         // Select color and apply
         KeyCode::Enter => {
-            let (color, name) = COLOR_PALETTE[*color_index];
+            let (color, name, _) = COLOR_PALETTE[*color_index];
             if is_foreground {
                 app.current_fg = color;
                 app.set_status(format!("FG: {}", name));
@@ -216,13 +254,31 @@ fn handle_color_picker_input(app: &mut App, key: KeyEvent, is_foreground: bool) 
 fn handle_formatting_input(app: &mut App, key: KeyEvent) {
     match key.code {
         // Toggle bold
-        KeyCode::Char('b') | KeyCode::Char('B') => {
+        KeyCode::Char('b') | KeyCode::Char('B') | KeyCode::Char('1') => {
             app.toggle_bold();
             app.set_status(if app.current_bold { "Bold: ON" } else { "Bold: OFF" });
         }
 
+        // Toggle italic
+        KeyCode::Char('i') | KeyCode::Char('I') | KeyCode::Char('2') => {
+            app.toggle_italic();
+            app.set_status(if app.current_italic { "Italic: ON" } else { "Italic: OFF" });
+        }
+
+        // Toggle underline
+        KeyCode::Char('u') | KeyCode::Char('U') | KeyCode::Char('3') => {
+            app.toggle_underline();
+            app.set_status(if app.current_underline { "Underline: ON" } else { "Underline: OFF" });
+        }
+
+        // Toggle strikethrough
+        KeyCode::Char('s') | KeyCode::Char('S') | KeyCode::Char('4') => {
+            app.toggle_strikethrough();
+            app.set_status(if app.current_strikethrough { "Strikethrough: ON" } else { "Strikethrough: OFF" });
+        }
+
         // Cycle dim
-        KeyCode::Char('d') | KeyCode::Char('D') => {
+        KeyCode::Char('m') | KeyCode::Char('M') | KeyCode::Char('5') => {
             app.cycle_dim();
             app.set_status(format!("Dim level: {}", app.current_dim));
         }

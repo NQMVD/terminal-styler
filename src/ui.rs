@@ -496,9 +496,9 @@ fn render_formatting_panel(frame: &mut Frame, app: &App, area: Rect) {
 fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
     let help_text = match app.active_panel {
         Panel::Editor => match app.mode {
-            Mode::Normal => "i:insert │ v:select │ e:export │ hjkl/arrows:move │ Ctrl+Q:quit",
+            Mode::Normal => "i:insert │ v:select │ y:yank │ p:paste │ e:export │ hjkl/arrows:move │ Ctrl+Q:quit",
             Mode::Typing => "Esc:normal │ arrows:move │ Enter:newline │ Backspace:delete",
-            Mode::Selecting => "hjkl/arrows:extend │ Enter:apply │ Esc:cancel",
+            Mode::Selecting => "hjkl/arrows:extend │ y:yank │ Enter:apply │ Esc:cancel",
         },
         Panel::FgColor | Panel::BgColor => "0-9,a-g:select │ ←→↑↓:nav │ Enter:apply │ Esc:editor",
         Panel::Formatting => "B/I/U/S/M:toggle │ E:export │ Esc:editor",

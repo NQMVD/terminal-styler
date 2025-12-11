@@ -131,6 +131,8 @@ pub struct App {
     pub should_quit: bool,
     /// Selection highlight display mode
     pub selection_highlight_mode: SelectionHighlightMode,
+    /// Internal yank buffer for copy/paste operations
+    pub yank_buffer: Option<Vec<StyledChar>>,
 }
 
 impl Default for App {
@@ -154,6 +156,7 @@ impl Default for App {
             status_message: None,
             should_quit: false,
             selection_highlight_mode: SelectionHighlightMode::default(),
+            yank_buffer: None,
         }
     }
 }
@@ -455,6 +458,38 @@ impl App {
             pos >= start && pos <= end
         } else {
             false
+        }
+    }
+
+    /// Yank (copy) the current selection into the yank buffer
+    pub fn yank(&mut self) {
+        if let Some((start, end)) = self.selection {
+            let end_inclusive = end.min(self.text.len().saturating_sub(1));
+            if start <= end_inclusive {
+                self.yank_buffer = Some(self.text[start..=end_inclusive].to_vec());
+            }
+        }
+    }
+
+    /// Paste the yank buffer at the cursor position
+    pub fn paste(&mut self) {
+        if let Some(ref buffer) = self.yank_buffer {
+            if buffer.is_empty() {
+                return;
+            }
+
+            // Insert each character from the buffer at the cursor position
+            for (i, styled_char) in buffer.iter().enumerate() {
+                let insert_pos = self.cursor_pos + i;
+                if insert_pos >= self.text.len() {
+                    self.text.push(styled_char.clone());
+                } else {
+                    self.text.insert(insert_pos, styled_char.clone());
+                }
+            }
+            // Move cursor to end of pasted content
+            self.cursor_pos += buffer.len();
+            self.clear_selection();
         }
     }
 }

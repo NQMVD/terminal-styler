@@ -152,6 +152,12 @@ fn handle_normal_typing_input(app: &mut App, key: KeyEvent) {
             app.set_status("-- VISUAL --");
         }
 
+        // Paste (yank buffer)
+        KeyCode::Char('p') if app.mode == Mode::Normal => {
+            app.paste();
+            app.set_status("Pasted");
+        }
+
         // Export
         KeyCode::Char('e') if app.mode == Mode::Normal => {
             match copy_to_clipboard(app) {
@@ -200,6 +206,13 @@ fn handle_selecting_input(app: &mut App, key: KeyEvent) {
         KeyCode::Down | KeyCode::Char('j') => app.move_down(),
         KeyCode::Home | KeyCode::Char('0') => app.move_to_line_start(),
         KeyCode::End | KeyCode::Char('$') => app.move_to_line_end(),
+
+        // Yank (copy) selection
+        KeyCode::Char('y') => {
+            app.yank();
+            app.set_status("Yanked");
+            app.clear_selection();
+        }
 
         // Apply style to selection
         KeyCode::Enter => {

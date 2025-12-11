@@ -328,7 +328,7 @@ impl App {
     }
 
     /// Update selection based on current cursor position
-    fn update_selection(&mut self) {
+    pub fn update_selection(&mut self) {
         if self.mode == Mode::Selecting {
             if let Some(anchor) = self.selection_anchor {
                 let start = anchor.min(self.cursor_pos);

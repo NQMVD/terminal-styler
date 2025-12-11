@@ -4,6 +4,7 @@ mod export;
 mod fx;
 mod import;
 mod input;
+mod mouse;
 mod ui;
 
 use std::io;
@@ -12,16 +13,17 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::{
-    event::{self, Event, KeyEventKind},
+    event::{self, Event, KeyEventKind, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::backend::CrosstermBackend;
-use ratatui::Terminal;
+use ratatui::{Terminal, layout::Rect};
 
 use app::App;
 use fx::FxManager;
 use input::handle_key_event;
+use mouse::handle_mouse_event;
 
 const FPS: usize = 60;
 
@@ -36,7 +38,7 @@ fn main() -> Result<()> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
@@ -77,11 +79,20 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
 
         // Handle events (60 FPS timing)
         if event::poll(Duration::from_millis(1000 / FPS as u64))? {
-            if let Event::Key(key) = event::read()? {
-                // Only handle key press events (not release or repeat)
-                if key.kind == KeyEventKind::Press {
-                    handle_key_event(&mut app, key);
+            match event::read()? {
+                Event::Key(key) => {
+                    // Only handle key press events (not release or repeat)
+                    if key.kind == KeyEventKind::Press {
+                        handle_key_event(&mut app, key);
+                    }
                 }
+                Event::Mouse(mouse_event) => {
+                    // Get terminal area for coordinate mapping
+                    let size = terminal.size().unwrap_or_else(|_| ratatui::layout::Size { width: 80, height: 24 });
+                    let terminal_area = Rect { x: 0, y: 0, width: size.width, height: size.height };
+                    handle_mouse_event(&mut app, mouse_event, terminal_area);
+                }
+                _ => {}
             }
         }
 

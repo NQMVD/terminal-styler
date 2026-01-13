@@ -1,0 +1,31 @@
+  DOWNLOADING ▌▌▌  Backend downloads assets
+
+ ▌ TRANSFERING ▌▌  Transfer assets to client
+
+ ▌▌ INSTALLING ▌  Client installs assets
+
+ ▌▌▌ VERIFYING    Client verifies installation
+
+ ▌▌▌▌ COMPLETE
+
+
+  DOWNLOADING ▌▌▌
+ ╰╌ Backend downloads assets
+
+ ▌ TRANSFERING ▌▌
+  ╰╌ Transfer assets to client
+ 
+ ▌▌ INSTALLING ▌
+   ╰╌ Client installs assets
+ 
+ ▌▌▌ VERIFYING 
+    ╰╌ Client verifies installation
+ 
+ ▌▌▌▌ COMPLETE
+
+
+  DOWNLOADING   TRANSFERING   INSTALLING   VERIFYING 
+ │             │             │         ╰╌ Client verifies installation
+ │             │             ╰╌ Transfer assets to client
+ │             ╰╌ Client installs assets
+ ╰╌ Backend downloads assets
